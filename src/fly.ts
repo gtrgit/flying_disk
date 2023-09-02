@@ -1,9 +1,9 @@
-import { engine, CameraModeArea, CameraType, Transform, Entity, AvatarAttach, AvatarAnchorPointType, MeshRenderer, MeshCollider, VisibilityComponent, InputAction, pointerEventsSystem, TransformType } from '@dcl/sdk/ecs';
+import { engine, CameraModeArea, CameraType,Material,TextureFilterMode,MaterialTransparencyMode, Transform, Entity, AvatarAttach, AvatarAnchorPointType, MeshRenderer, MeshCollider, VisibilityComponent, InputAction, pointerEventsSystem, TransformType } from '@dcl/sdk/ecs';
 import { Vector3, Quaternion } from '@dcl/sdk/math';
 //import * as utils from "@dcl-sdk/utils";
 import { movePlayerTo } from '~system/RestrictedActions';
 import { triggerSceneEmote } from '~system/RestrictedActions';
-
+import { Color4 } from '@dcl/sdk/math'
 
 
 //// Ideal mechanism: 
@@ -37,7 +37,7 @@ let lastUpdateTimestamp = 0; // Initialize with current timestamp
 
 export function toggleFlyingState() {
   flying = !flying;
-  console.log("Toggled flying");
+  // console.log("Toggled flying");
   setupFlyingDemo();
 }
 
@@ -46,15 +46,16 @@ export function toggleHoveringState() {
   setupFlyingDemo();
 }
 
-let platform: Entity | null = null;
+let platform: Entity //| null = null;
+
 
 export function setupFlyingDemo() {
   if (flying) {
     if (!handleVerticalMovementAdded) {
-      triggerSceneEmote({ src: 'models/dance10.glb', loop: true });
+      triggerSceneEmote({ src: 'models/fly.glb', loop: true });
       engine.addSystem(handleVerticalMovement);
       handleVerticalMovementAdded = true;
-      console.log("Added flying demo");
+      // console.log("Added flying demo");
     }
    // movePlayerTo({
    //   newRelativePosition: Vector3.create(0, 100, 0),
@@ -62,7 +63,7 @@ export function setupFlyingDemo() {
   } else {
     if (handleVerticalMovementAdded) {
       engine.removeSystem(handleVerticalMovement);
-      console.log("Removed flying demo");
+      // console.log("Removed flying demo");
       handleVerticalMovementAdded = false;
     }
   }
@@ -76,8 +77,8 @@ export function setupFlyingDemo() {
 
   else if (platform) {
     engine.removeEntity(platform);
-    platform = null;
-    console.log("exited fly mode")
+    // platform = null;
+    // console.log("exited fly mode")
   }
 
   if(!flying && !InputAction.IA_ANY && playerTransform) {
@@ -105,10 +106,24 @@ function createPlatform(position: Vector3) {
       position: Vector3.add(playerTransform.position, Vector3.create(0, -2.5, 0)), // Adjust the Y offset as needed
       scale: Vector3.create(10, 0.1, 10),
     });
+        
     
     MeshRenderer.setBox(platform);
     MeshCollider.setBox(platform);
-    VisibilityComponent.create(platform, { visible: false });
+    VisibilityComponent.create(platform, { visible: true });
+
+      
+   
+        //Create material and configure its fields
+        Material.setPbrMaterial(platform, {
+          texture: Material.Texture.Common({
+            src: 'materials/slow_fast_circle.png',
+            filterMode: TextureFilterMode.TFM_BILINEAR
+          }),
+          transparencyMode: MaterialTransparencyMode.MTM_ALPHA_TEST,
+          alphaTest: .1
+        })
+
   }
   //AvatarAttach.create(platform, {
   //  anchorPointId: AvatarAnchorPointType.AAPT_POSITION,
@@ -135,7 +150,7 @@ function handleVerticalMovement() {
     const speed = 0.1;
     const cameraRotation = cameraTransform.rotation;
     const cameraEulerAngles = quaternionToEulerAngles(cameraRotation);
-    console.log("Camera EulerAngles:", cameraEulerAngles);
+    // console.log("Camera EulerAngles:"+ cameraEulerAngles.x);
     const cameraForward = calculateCameraForward(cameraEulerAngles);
     const offset = calculateOffset(cameraForward, speed);
 
@@ -143,18 +158,54 @@ function handleVerticalMovement() {
       const platformTransform = Transform.getMutable(platform);
 
       const verticalAngleDegrees = cameraEulerAngles.x;
-      console.log("Vertical Angle:", verticalAngleDegrees);
 
-      // Calculate the vertical speed based on camera angle
-      if (verticalAngleDegrees >= -7 && verticalAngleDegrees <= 0) {
+      const rotationX = cameraEulerAngles.x
+      const rotationY = cameraEulerAngles.y
+
+      // console.log("rotation x: "+ cameraEulerAngles.x+ " r y: "+ cameraEulerAngles.y+" r z: "+cameraEulerAngles.z);
+
+      // console.log("Vertical Angle:"+ verticalAngleDegrees);
+
+      
+      if (rotationX <= 0 && rotationX >= -0.6 && rotationY >= -1.5 && rotationY <= 1.5) {
+        // UP w NW N NE e 
         verticalSpeed = speed;
-        console.log("Looking up");
-      } else if (verticalAngleDegrees >= 0 && verticalAngleDegrees <= 7) {
-        verticalSpeed = -speed * 15;
-        console.log("Looking down");
-      } else {
-        verticalSpeed = 0; // No vertical movement if outside specified angle ranges
+        console.log("Looking up"+ " x "+rotationX +" y "+rotationY);
+      } else if (rotationX <= 3.14 && rotationX >= 2.5 && rotationY >= -1.5 && rotationY <= 1.55) {
+        // UP e SE S SW w 
+        verticalSpeed = speed;
+        console.log("Looking up"+  " x "+rotationX +" y "+rotationY);
       }
+      if (rotationX >= 0 && rotationX <= 1.05 && rotationY >= -1.5 && rotationY <= 1.55) {
+        // DOWN w NW N NE e 
+        verticalSpeed = -speed * 15;
+        console.log("Looking down"+ " x "+rotationX +" y "+rotationY);
+      } else if (rotationX >= -3.14 && rotationX <= -2.17 && rotationY >= -1.5 && rotationY <= 1.55) {
+        // DOWN e SE S SW w 
+        verticalSpeed = -speed * 15;
+        console.log("Looking down"+ " x "+rotationX +" y "+rotationY);
+      }
+      
+      // if (verticalAngleDegrees >= -7 && verticalAngleDegrees <= 0) {
+      //   verticalSpeed = speed;
+      //   console.log("Looking up");
+      // } else if (verticalAngleDegrees >= 0 && verticalAngleDegrees <= 7) {
+      //   verticalSpeed = -speed * 15;
+      //   console.log("Looking down");
+      // } else {
+      //   verticalSpeed = 0; // No vertical movement if outside specified angle ranges
+      // }
+
+      // // Calculate the vertical speed based on camera angle
+      // if (verticalAngleDegrees >= -7 && verticalAngleDegrees <= 0) {
+      //   verticalSpeed = speed;
+      //   console.log("Looking up");
+      // } else if (verticalAngleDegrees >= 0 && verticalAngleDegrees <= 7) {
+      //   verticalSpeed = -speed * 15;
+      //   console.log("Looking down");
+      // } else {
+      //   verticalSpeed = 0; // No vertical movement if outside specified angle ranges
+      // }
 
       // Modify the offset to include vertical movement
       const modifiedOffset = calculateOffsetWithVertical(offset, verticalSpeed);
@@ -165,7 +216,7 @@ function handleVerticalMovement() {
     }
   } else if (platform) {
     engine.removeEntity(platform);
-    platform = null;
+    // platform = null;
     console.log("Exited fly mode");
   }
 }
@@ -196,16 +247,36 @@ function quaternionToEulerAngles(quaternion: Quaternion): Vector3 {
   return Vector3.create(x, y, z);
 }
 
+// // Calculate camera direction
+// function calculateCameraForward(cameraEulerAngles: Vector3): Vector3 {
+//   const cameraForward = Vector3.create(
+//     Math.sin(cameraEulerAngles.y),
+//     0,
+//     Math.cos(cameraEulerAngles.y)
+//   );
+//   return cameraForward;
+// }
+
+
+
 // Calculate camera direction
 function calculateCameraForward(cameraEulerAngles: Vector3): Vector3 {
   const cameraForward = Vector3.create(
-    Math.sin(cameraEulerAngles.y),
+    //NW
+    // Math.cos(cameraEulerAngles.y),
+    // 0,
+    // Math.sin(cameraEulerAngles.y)
+    //NE
+    // Math.sin(cameraEulerAngles.y),
+    // 0,
+    // Math.cos(cameraEulerAngles.y)
+
+    Math.cos(cameraEulerAngles.y),
     0,
-    Math.cos(cameraEulerAngles.y)
+    Math.sin(cameraEulerAngles.y)
   );
   return cameraForward;
 }
-
 // Calculate offset
 function calculateOffset(cameraForward: Vector3, speed: number): Vector3 {
   const offset = Vector3.create(
